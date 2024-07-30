@@ -1,22 +1,58 @@
 import pygame
 import math
 import heapq
+import random
+import time
+
+# Directions: (dx, dy)
+DIRECTIONS = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+
+
+def is_valid(x, y, maze):
+    return 0 <= x < len(maze) and 0 <= y < len(maze[0])
+
+
+def generate_maze(rows, cols):
+    random.seed(time.time())  # Seed the random number generator with the current time
+    maze = [[1 for _ in range(cols)] for _ in range(rows)]
+    visited = [[False for _ in range(cols)] for _ in range(rows)]
+
+    def carve_passages(x, y):
+        visited[x][y] = True
+        maze[x][y] = 0  # Mark cell as path
+
+        directions = DIRECTIONS[:]
+        random.shuffle(directions)  # Randomize the order of exploration
+
+        for dx, dy in directions:
+            nx, ny = x + 2 * dx, y + 2 * dy
+            if is_valid(nx, ny, maze) and not visited[nx][ny]:
+                maze[x + dx][y + dy] = 0  # Remove the wall between cells
+                carve_passages(nx, ny)
+
+    start_x, start_y = random.randrange(rows // 2) * 2, random.randrange(cols // 2) * 2
+    carve_passages(start_x, start_y)
+    return maze
 
 
 class Game:
-    def __init__(self, cols=11, rows=6, square_size=150):
-        self.rows = rows
-        self.cols = cols
+    def __init__(self, square_size=50):
+        self.mode = "menu"
+        self.map = 0
+        self.rows = 20
+        self.cols = 20
         self.square_size = square_size
-        self.destination = (1, 4)
-        self.initial_position = (4, 7)
+        self.destination = (14, 19)
+        self.initial_position = (0, 0)
         self.current = self.initial_position
-        self.barriers = [(1, 3), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7)]
+        self.maze = []
+        self.barriers = []
         self.open = []
         self.closed = []
-
-        self.screen_width = cols * square_size
-        self.screen_height = rows * square_size
+        self.path = []
+        self.screen_width = self.cols * square_size
+        self.screen_height = self.rows * square_size
+        self.selected_tool = "barrier"
 
         pygame.init()
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
@@ -30,12 +66,13 @@ class Game:
         self.colors = {
             "black": pygame.Color(0, 0, 0),
             "white": pygame.Color(255, 255, 255),
-            "red": pygame.Color(255, 0, 0),
+            "red": pygame.Color(200, 0, 0),
             "green": pygame.Color(0, 255, 0),
             "blue": pygame.Color(0, 0, 255),
             "purple": pygame.Color(128, 0, 128),
             "gray": pygame.Color(128, 128, 128),
             "cyan": pygame.Color(0, 255, 255),
+            "yellow": pygame.Color(255, 255, 0),
         }
 
         self.BARRIER = 1
@@ -57,10 +94,26 @@ class Game:
         self.distances[self.initial_position] = 0
 
     def reset_game(self):
+        print("Resetting game")
         self.open = []
         self.closed = []
+        self.path = []
         self.current = self.initial_position
         self.initialize_distances()
+
+        if self.mode == "maze":
+            self.maze = generate_maze(self.rows, self.cols)
+            self.barriers = [
+                (x, y)
+                for x in range(self.rows)
+                for y in range(self.cols)
+                if self.maze[x][y] == 1
+            ]
+
+            if self.destination in self.barriers:
+                self.barriers.remove(self.destination)
+
+        self.update_visualization()
 
     def move(self, direction):
         new_position = self.current
@@ -105,31 +158,20 @@ class Game:
         elif (x, y) == self.initial_position:
             return self.colors["blue"]
         elif (x, y) in self.barriers:
-            return self.colors["red"]
+            return self.colors["black"]
         elif (x, y) == self.current:
             return self.colors["blue"]
         elif (x, y) in self.open:
-            return self.colors["green"]
+            return self.colors["gray"]
         elif (x, y) in self.closed:
             return self.colors["purple"]
 
         else:
-            return self.colors["black"]
+            return self.colors["white"]
 
     def draw_grid(self):
         for x in range(self.rows):
             for y in range(self.cols):
-                pygame.draw.rect(
-                    self.screen,
-                    self.get_square_color(x, y),
-                    (
-                        y * self.square_size,
-                        x * self.square_size,
-                        self.square_size,
-                        self.square_size,
-                    ),
-                    0,
-                )
                 pygame.draw.rect(
                     self.screen,
                     self.colors["gray"],
@@ -145,31 +187,25 @@ class Game:
     def draw_objects(self):
         for x in range(self.rows):
             for y in range(self.cols):
-                if (x, y) == self.destination:
-                    text = self.font.render(f"D", True, self.colors["white"])
-                elif (x, y) == self.initial_position:
-                    text = self.font.render(f"I", True, self.colors["white"])
-                elif (x, y) in self.barriers:
-                    text = self.font.render(f"B", True, self.colors["white"])
-                elif (x, y) == self.current:
-                    text = self.font.render(f"C", True, self.colors["white"])
-                else:
-                    text = self.font.render(f"", True, self.colors["white"])
 
-                text_rect = text.get_rect(
-                    center=(
-                        y * self.square_size + self.square_size // 2,
-                        x * self.square_size + self.square_size // 2,
-                    )
+                pygame.draw.rect(
+                    self.screen,
+                    self.get_square_color(x, y),
+                    (
+                        y * self.square_size,
+                        x * self.square_size,
+                        self.square_size,
+                        self.square_size,
+                    ),
+                    0,
                 )
-                self.screen.blit(text, text_rect)
 
     def draw_open_closed(self):
 
         for x, y in self.open:
             pygame.draw.rect(
                 self.screen,
-                self.colors["green"],
+                self.colors["gray"],
                 (
                     y * self.square_size,
                     x * self.square_size,
@@ -315,6 +351,8 @@ class Game:
             current_node = heapq.heappop(priority_queue)[1]
 
             if current_node == self.destination:
+                print("Path found")
+                self.reconstruct_path(current_node)
                 break
 
             if current_node in self.closed:
@@ -339,19 +377,101 @@ class Game:
             self.open = [node for f_cost, node in priority_queue]
             self.update_visualization()
 
+    def reconstruct_path(self, end_node):
+        print("Reconstructing path")
+        path = []
+        while end_node in self.prev_nodes:
+            path.append(end_node)
+            end_node = self.prev_nodes[end_node]
+        print(path)
+        path.remove(self.destination)
+        self.path = path
+        self.closed = []
+        self.open = []
+
     def heuristic(self, node):
         return abs(node[0] - self.destination[0]) + abs(node[1] - self.destination[1])
 
     def get_all_nodes(self):
         return [(x, y) for x in range(self.rows) for y in range(self.cols)]
 
+    def draw_selected_tool(self):  # put the selected tool in the title
+        pygame.display.set_caption(f"Selected tool: {self.selected_tool}")
+
     def update_visualization(self):
-        self.screen.fill(self.colors["black"])
-        self.draw_grid()
+        print("Drawing editor")
+        self.screen.fill(self.colors["white"])
+        self.draw_selected_tool()
+        self.draw_objects()
+
+        self.screen.fill(self.colors["white"])
         self.draw_open_closed()
         self.draw_objects()
+
+        self.draw_grid()
+
+        if hasattr(self, "path"):
+            for x, y in self.path:
+                pygame.draw.rect(
+                    self.screen,
+                    pygame.Color(255, 255, 0),  # Yellow color
+                    (
+                        y * self.square_size,
+                        x * self.square_size,
+                        self.square_size,
+                        self.square_size,
+                    ),
+                    0,
+                )
+
         pygame.display.flip()
-        pygame.time.wait(100)  # Add a delay to visualize the algorithm's progress
+        # pygame.time.wait(10)  # Add a delay to visualize the algorithm's progress
+
+    def choose_map(self):
+        pygame.font.init()
+        self.font = pygame.font.Font(None, 36)
+        self.screen.fill(self.colors["white"])
+        text = self.font.render("Choose a map", True, self.colors["black"])
+        self.screen.blit(
+            text, (self.screen_width // 2 - 100, self.screen_height // 2 - 50)
+        )
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    self.map = 1
+                elif event.key == pygame.K_2:
+                    self.map = 2
+                elif event.key == pygame.K_3:
+                    self.map = 3
+
+    def choose_mode(self):
+        pygame.font.init()
+        self.font = pygame.font.Font(None, 36)
+        self.screen.fill(self.colors["white"])
+        text = self.font.render("Choose a mode", True, self.colors["black"])
+        self.screen.blit(
+            text, (self.screen_width // 2 - 100, self.screen_height // 2 - 50)
+        )
+
+        maze = self.font.render("1. Maze", True, self.colors["black"])
+        barricade = self.font.render("2. Barricade", True, self.colors["black"])
+
+        self.screen.blit(maze, (self.screen_width // 2 - 100, self.screen_height // 2))
+        self.screen.blit(
+            barricade, (self.screen_width // 2 - 100, self.screen_height // 2 + 50)
+        )
+
+        pygame.display.flip()
+
+    def select_maze(self):
+        self.mode = "maze"
+        self.reset_game()
+
+    def select_barricade(self):
+        self.mode = "barricade"
+        self.reset_game()
 
     def run(self):
         while self.running:
@@ -359,7 +479,54 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            self.a_star()  # Run Dijkstra's algorithm
+                if event.type == pygame.MOUSEBUTTONDOWN and self.mode != "menu":
+                    y, x = event.pos
+                    x = x // self.square_size
+                    y = y // self.square_size
+
+                    if self.selected_tool == "barrier":
+                        if (x, y) not in self.barriers:
+                            self.barriers.append((x, y))
+                        else:
+                            self.barriers.remove((x, y))
+                    elif self.selected_tool == "initial_position":
+                        self.initial_position = (x, y)
+                        self.current = self.initial_position
+                    elif self.selected_tool == "destination":
+                        self.destination = (x, y)
+
+                    self.update_visualization()
+
+                if event.type == pygame.KEYDOWN:
+                    if self.mode == "menu":
+                        if event.key == pygame.K_1:
+                            self.select_maze()
+                        elif event.key == pygame.K_2:
+                            self.select_barricade()
+
+                    else:
+                        if event.key == pygame.K_r:
+                            self.reset_game()
+                        elif event.key == pygame.K_c:  # clear all barriers
+                            self.barriers = []
+                            self.update_visualization()
+                        elif event.key == pygame.K_BACKSPACE:
+                            self.mode = "menu"
+                        elif event.key == pygame.K_a:
+                            self.a_star()
+                        elif event.key == pygame.K_1:
+                            self.selected_tool = "barrier"
+                            self.draw_selected_tool()
+                        elif event.key == pygame.K_2:
+                            self.selected_tool = "initial_position"
+                            self.draw_selected_tool()
+                        elif event.key == pygame.K_3:
+                            self.selected_tool = "destination"
+                            self.draw_selected_tool()
+
+            if self.mode == "menu":
+                self.choose_mode()
+
             self.fps.tick(60)
 
         pygame.quit()
