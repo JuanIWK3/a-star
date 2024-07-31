@@ -187,18 +187,42 @@ class Game:
     def draw_objects(self):
         for x in range(self.rows):
             for y in range(self.cols):
+                if (x, y) in self.barriers:  # draw the barrier image on the screen
+                    image = pygame.image.load("barrier.png")
 
-                pygame.draw.rect(
-                    self.screen,
-                    self.get_square_color(x, y),
-                    (
-                        y * self.square_size,
-                        x * self.square_size,
-                        self.square_size,
-                        self.square_size,
-                    ),
-                    0,
-                )
+                    self.screen.blit(
+                        image,
+                        (
+                            y * self.square_size,
+                            x * self.square_size,
+                            self.square_size / 2,
+                            self.square_size / 2,
+                        ),
+                    )
+                elif (x, y) == self.destination:
+                    image = pygame.image.load("dest_flag.png")
+
+                    self.screen.blit(
+                        image,
+                        (
+                            y * self.square_size,
+                            x * self.square_size,
+                            self.square_size / 2,
+                            self.square_size / 2,
+                        ),
+                    )
+                else:
+                    pygame.draw.rect(
+                        self.screen,
+                        self.get_square_color(x, y),
+                        (
+                            y * self.square_size,
+                            x * self.square_size,
+                            self.square_size,
+                            self.square_size,
+                        ),
+                        0,
+                    )
 
     def draw_open_closed(self):
 
@@ -237,29 +261,29 @@ class Game:
                 self.colors["white"],
             )
 
-            self.screen.blit(
-                g_cost_text,
-                (
-                    y * self.square_size + self.square_size // 2 - self.square_size / 3,
-                    x * self.square_size + self.square_size // 2 - self.square_size / 3,
-                ),
-            )
+            # self.screen.blit(
+            #     g_cost_text,
+            #     (
+            #         y * self.square_size + self.square_size // 2 - self.square_size / 3,
+            #         x * self.square_size + self.square_size // 2 - self.square_size / 3,
+            #     ),
+            # )
 
-            self.screen.blit(
-                h_cost_text,
-                (
-                    y * self.square_size + self.square_size // 2 + 20,
-                    x * self.square_size + self.square_size // 2 - self.square_size / 3,
-                ),
-            )
+            # self.screen.blit(
+            #     h_cost_text,
+            #     (
+            #         y * self.square_size + self.square_size // 2 + 20,
+            #         x * self.square_size + self.square_size // 2 - self.square_size / 3,
+            #     ),
+            # )
 
-            self.screen.blit(
-                f_cost_text,
-                (
-                    y * self.square_size + self.square_size // 2 - 20,
-                    x * self.square_size + self.square_size // 2 - 20,
-                ),
-            )
+            # self.screen.blit(
+            #     f_cost_text,
+            #     (
+            #         y * self.square_size + self.square_size // 2 - 20,
+            #         x * self.square_size + self.square_size // 2 - 20,
+            #     ),
+            # )
 
         for x, y in self.closed:
             pygame.draw.rect(
@@ -296,29 +320,29 @@ class Game:
                 self.colors["white"],
             )
 
-            self.screen.blit(
-                g_cost_text,
-                (
-                    y * self.square_size + self.square_size // 2 - self.square_size / 3,
-                    x * self.square_size + self.square_size // 2 - self.square_size / 3,
-                ),
-            )
+            # self.screen.blit(
+            #     g_cost_text,
+            #     (
+            #         y * self.square_size + self.square_size // 2 - self.square_size / 3,
+            #         x * self.square_size + self.square_size // 2 - self.square_size / 3,
+            #     ),
+            # )
 
-            self.screen.blit(
-                h_cost_text,
-                (
-                    y * self.square_size + self.square_size // 2 + 20,
-                    x * self.square_size + self.square_size // 2 - self.square_size / 3,
-                ),
-            )
+            # self.screen.blit(
+            #     h_cost_text,
+            #     (
+            #         y * self.square_size + self.square_size // 2 + 20,
+            #         x * self.square_size + self.square_size // 2 - self.square_size / 3,
+            #     ),
+            # )
 
-            self.screen.blit(
-                f_cost_text,
-                (
-                    y * self.square_size + self.square_size // 2 - 20,
-                    x * self.square_size + self.square_size // 2 - 20,
-                ),
-            )
+            # self.screen.blit(
+            #     f_cost_text,
+            #     (
+            #         y * self.square_size + self.square_size // 2 - 20,
+            #         x * self.square_size + self.square_size // 2 - 20,
+            #     ),
+            # )
 
     def calculate_distance(self, node1, node2):
         return math.sqrt((node1[0] - node2[0]) ** 2 + (node1[1] - node2[1]) ** 2)
