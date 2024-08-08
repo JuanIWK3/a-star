@@ -11,10 +11,12 @@ COLS = 20
 ROWS = 15
 
 
-def get_color(x, y):
+# to make a chess like grid
+def get_tile_color(x, y):
     return (0, 0, 0) if (x + y) % 2 == 0 else (25, 25, 25)
 
 
+# get a rect a little smaller than the square
 def get_rect(x, y):
     return pygame.Rect(
         x * SQUARE_SIZE + 5, y * SQUARE_SIZE + 5, SQUARE_SIZE - 10, SQUARE_SIZE - 10
@@ -104,8 +106,8 @@ class Game:
         self.load_map()
         self.initialize_distances()
 
+    # save the current state of the map to a txt file
     def update_map(self):
-        # save the current state of the map to a txt file
         with open("map.txt", "w") as f:
             f.write(f"{self.player}\n")
             f.write(f"{self.enemy}\n")
@@ -113,8 +115,8 @@ class Game:
             f.write(f"{self.power_up}\n")
             f.write(f"{self.barriers}\n")
 
+    # check if the map file exists
     def load_map(self):
-        # check if the file exists
         try:
             with open("map.txt", "r") as f:
                 self.player = ast.literal_eval(f.readline().strip())
@@ -130,9 +132,11 @@ class Game:
             # if there is an error reading the file, create it with the default values
             self.update_map()
 
+    # heuristic function to calculate the distance between two nodes
     def heuristic(self, a, b):
         return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
 
+    # get the neighbors of a node
     def get_neighbors(self, node):
         directions = [
             (1, 0),
@@ -153,12 +157,14 @@ class Game:
                 print(f"Neighbor {neighbor} out of bounds")
         return neighbors
 
+    # initialize the distances dictionary with all the nodes in the grid
     def initialize_distances(self):
         for x in range(COLS):
             for y in range(ROWS):
                 self.distances[(x, y)] = float("inf")
         self.distances[self.player] = 0
 
+    # reconstruct the path from the destination to the initial position
     def reconstruct_path(self, end_node):
         print("Reconstructing path")
         path = []
@@ -214,7 +220,7 @@ class Game:
                 ):
                     continue
 
-                g_cost = 0
+                g_cost = self.heuristic(current_node, neighbor)
                 h_cost = self.heuristic(neighbor, self.objective)
                 f_cost = g_cost + h_cost
 
@@ -223,7 +229,7 @@ class Game:
                     self.prev_nodes[neighbor] = current_node
                     heapq.heappush(priority_queue, (f_cost, neighbor))
 
-            self.open_list = [node for f_cost, node in priority_queue]
+            self.open_list = [node for _, node in priority_queue]
             pygame.display.flip()
 
         if not self.path:
@@ -316,7 +322,7 @@ class Game:
                 else:
                     pygame.draw.rect(
                         self.screen,
-                        get_color(i, j),
+                        get_tile_color(i, j),
                         (i * SQUARE_SIZE, j * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE),
                         0,
                     )
